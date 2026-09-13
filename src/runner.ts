@@ -1,6 +1,5 @@
-import { spawn } from "child_process";
-import { dirname, isAbsolute } from "path";
-import { existsSync, statSync } from "fs";
+import { chunkToString, platformName, spawnProcess } from "./node-host";
+import { isAbsolutePath, parentDirectory } from "./paths";
 import { buildUpgitArgs, parseExtraArgs, parseUpgitUrl, redactSecrets } from "./upgit";
 
 const WINDOWS_DEFAULT = "E:\\Software\\upgit_win_amd64\\upgit.exe";
@@ -12,89 +11,101 @@ export class UpgitError extends Error {
 	}
 }
 
-export function resolveUpgitExecutable(configuredPath: string): string {
+export function candidateExecutables(configuredPath: string): string[] {
 	const trimmed = configuredPath.trim();
 	if (trimmed.length > 0) {
-		return trimmed;
+		return [trimmed];
 	}
-	if (existsSync(WINDOWS_DEFAULT) && statSync(WINDOWS_DEFAULT).isFile()) {
-		return WINDOWS_DEFAULT;
+	if (platformName() === "win32") {
+		return [WINDOWS_DEFAULT, "upgit.exe"];
 	}
-	return process.platform === "win32" ? "upgit.exe" : "upgit";
+	return ["upgit"];
 }
 
 export function applicationPathFor(executable: string): string | null {
-	if (!isAbsolute(executable)) {
+	if (!isAbsolutePath(executable)) {
 		return null;
 	}
-	return dirname(executable);
+	return parentDirectory(executable);
 }
 
-export function uploadWithUpgit(options: {
-	executable: string;
+export async function uploadWithUpgit(options: {
+	configuredPath: string;
 	filePath: string;
 	extraArgs: string;
 	deleteLocalAfterUpload: boolean;
 }): Promise<string> {
-	const executable = options.executable;
-	const applicationPath = applicationPathFor(executable);
-
 	const extra = parseExtraArgs(options.extraArgs);
-	const args = buildUpgitArgs(
-		options.filePath,
-		applicationPath,
-		extra,
-		options.deleteLocalAfterUpload,
-	);
+	const executables = candidateExecutables(options.configuredPath);
+	let lastFailure: Error | null = null;
+	for (const executable of executables) {
+		const args = buildUpgitArgs(
+			options.filePath,
+			applicationPathFor(executable),
+			extra,
+			options.deleteLocalAfterUpload,
+		);
+		try {
+			return await runUpgit(executable, args);
+		} catch (failure) {
+			lastFailure =
+				failure instanceof Error ? failure : new Error(String(failure));
+		}
+	}
+	throw lastFailure ?? new UpgitError("No Upgit executable found.");
+}
 
+function runUpgit(executable: string, args: readonly string[]): Promise<string> {
 	return new Promise((resolve, reject) => {
 		let stdout = "";
 		let stderr = "";
 		let settled = false;
 
-		const child = spawn(executable, args, {
-			windowsHide: true,
-		});
+		const child = spawnProcess(executable, args);
 
-		child.stdout.on("data", (chunk: Buffer | string) => {
-			stdout += chunk.toString();
-		});
-		child.stderr.on("data", (chunk: Buffer | string) => {
-			stderr += chunk.toString();
-		});
-		child.on("error", (error: Error) => {
+		const finish = (result: Error | string) => {
 			if (settled) {
 				return;
 			}
 			settled = true;
-			reject(
+			if (typeof result === "string") {
+				resolve(result);
+				return;
+			}
+			reject(result);
+		};
+
+		child.stdout?.on("data", (chunk) => {
+			stdout += chunkToString(chunk);
+		});
+		child.stderr?.on("data", (chunk) => {
+			stderr += chunkToString(chunk);
+		});
+		child.on("error", (err) => {
+			finish(
 				new UpgitError(
-					`Failed to start Upgit (${executable}): ${error.message}`,
+					`Failed to start Upgit (${executable}): ${err.message}`,
 				),
 			);
 		});
 		child.on("close", (code) => {
-			if (settled) {
-				return;
-			}
-			settled = true;
 			const url = parseUpgitUrl(stdout);
 			if (code === 0 && url !== null) {
-				resolve(url);
+				finish(url);
 				return;
 			}
 			const detail = redactSecrets((stderr || stdout).trim());
 			if (code !== 0) {
-				reject(
+				finish(
 					new UpgitError(
 						detail.length > 0
-							? `Upgit exited with code ${code}: ${detail}`
-							: `Upgit exited with code ${code}.`,
+							? `Upgit exited with code ${String(code)}: ${detail}`
+							: `Upgit exited with code ${String(code)}.`,
 					),
 				);
 				return;
 			}
-			reject(
+			finish(
 				new UpgitError(
 					detail.length > 0
 						? `Upgit did not print a URL. Output: ${detail}`

@@ -28,6 +28,13 @@ test("parseExtraArgs splits on whitespace", () => {
 	assert.deepEqual(parseExtraArgs(""), []);
 });
 
+test("candidateExecutables uses the configured path first", async () => {
+	const { candidateExecutables } = await import("./runner");
+	assert.deepEqual(candidateExecutables("D:\\tools\\upgit.exe"), [
+		"D:\\tools\\upgit.exe",
+	]);
+});
+
 test("buildUpgitArgs forces stdout url output", () => {
 	const args = buildUpgitArgs(
 		"C:\\a.png",

@@ -18,7 +18,7 @@ import {
 	replaceImageRef,
 	type ImageRef,
 } from "./markdown";
-import { resolveUpgitExecutable, uploadWithUpgit, UpgitError } from "./runner";
+import { uploadWithUpgit, UpgitError } from "./runner";
 import {
 	DEFAULT_SETTINGS,
 	UpgitSettingTab,
@@ -218,12 +218,9 @@ export default class UpgitPlugin extends Plugin {
 			new Notice("Upgit needs a local vault on desktop.");
 			return null;
 		}
-		const executable = resolveUpgitExecutable(
-			this.settings.executablePath,
-		);
 		try {
 			return await uploadWithUpgit({
-				executable,
+				configuredPath: this.settings.executablePath,
 				filePath: abs,
 				extraArgs: this.settings.extraArgs,
 				deleteLocalAfterUpload: this.settings.deleteLocalAfterUpload,

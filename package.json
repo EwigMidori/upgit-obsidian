@@ -9,7 +9,7 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint .",
-		"test": "tsx --test src/image.test.ts src/markdown.test.ts src/upgit.test.ts"
+		"test": "tsx --test src/image.test.ts src/markdown.test.ts src/upgit.test.ts src/paths.test.ts"
 	},
 	"keywords": ["obsidian", "upgit", "image", "upload"],
 	"license": "MIT",
