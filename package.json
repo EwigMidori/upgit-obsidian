@@ -1,6 +1,6 @@
 {
 	"name": "upgit-obsidian",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Upload images from the Obsidian file explorer or editor using the Upgit CLI",
 	"main": "main.js",
 	"type": "module",
@@ -11,7 +11,12 @@
 		"lint": "eslint .",
 		"test": "tsx --test src/image.test.ts src/markdown.test.ts src/upgit.test.ts src/paths.test.ts"
 	},
-	"keywords": ["obsidian", "upgit", "image", "upload"],
+	"keywords": [
+		"obsidian",
+		"upgit",
+		"image",
+		"upload"
+	],
 	"license": "MIT",
 	"author": "EwigMidori",
 	"repository": {
