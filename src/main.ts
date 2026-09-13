@@ -15,7 +15,6 @@ import {
 	findImageRefs,
 	pathsPointToSameFile,
 	renderImageMarkdown,
-	replaceImageRef,
 	type ImageRef,
 } from "./markdown";
 import { uploadWithUpgit, UpgitError } from "./runner";
@@ -150,11 +149,7 @@ export default class UpgitPlugin extends Plugin {
 			return;
 		}
 		if (this.settings.replaceInActiveNote) {
-			editor.replaceRange(
-				renderImageMarkdown(ref, url),
-				editor.offsetToPos(ref.from),
-				editor.offsetToPos(ref.to),
-			);
+			this.replaceRefsInEditor(editor, [ref], url);
 		}
 		await this.afterSuccess(url);
 	}
@@ -194,22 +189,63 @@ export default class UpgitPlugin extends Plugin {
 			return;
 		}
 		const editor = view.editor;
-		const text = editor.getValue();
-		const refs = findImageRefs(text).filter((ref) =>
+		const refs = findImageRefs(editor.getValue()).filter((ref) =>
 			pathsPointToSameFile(ref.path, file.path, file.name),
 		);
+		this.replaceRefsInEditor(editor, refs, url);
+	}
+
+	private replaceRefsInEditor(
+		editor: Editor,
+		refs: ImageRef[],
+		url: string,
+	) {
 		if (refs.length === 0) {
 			return;
 		}
-		let next = text;
-		for (let i = refs.length - 1; i >= 0; i--) {
-			const ref = refs[i];
-			if (ref === undefined) {
-				continue;
-			}
-			next = replaceImageRef(next, ref, url);
+		const scroll = this.captureScroll(editor);
+		const ordered = [...refs].sort((a, b) => b.from - a.from);
+		for (const ref of ordered) {
+			editor.replaceRange(
+				renderImageMarkdown(ref, url),
+				editor.offsetToPos(ref.from),
+				editor.offsetToPos(ref.to),
+			);
 		}
-		editor.setValue(next);
+		this.restoreScroll(editor, scroll);
+		window.requestAnimationFrame(() => {
+			this.restoreScroll(editor, scroll);
+		});
+	}
+
+	private captureScroll(editor: Editor): { top: number; left: number } {
+		const el = this.scrollElement(editor);
+		if (el === null) {
+			return { top: 0, left: 0 };
+		}
+		return { top: el.scrollTop, left: el.scrollLeft };
+	}
+
+	private restoreScroll(
+		editor: Editor,
+		pos: { top: number; left: number },
+	) {
+		const el = this.scrollElement(editor);
+		if (el === null) {
+			return;
+		}
+		el.scrollTop = pos.top;
+		el.scrollLeft = pos.left;
+	}
+
+	private scrollElement(editor: Editor): HTMLElement | null {
+		const cm = (
+			editor as unknown as { cm?: { scrollDOM?: HTMLElement } }
+		).cm;
+		if (cm?.scrollDOM instanceof HTMLElement) {
+			return cm.scrollDOM;
+		}
+		return null;
 	}
 
 	private async uploadOne(file: TFile): Promise<string | null> {
