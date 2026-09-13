@@ -1,6 +1,6 @@
 {
 	"name": "upgit-obsidian",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "Upload images from the Obsidian file explorer or editor using the Upgit CLI",
 	"main": "main.js",
 	"type": "module",
