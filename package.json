@@ -1,0 +1,34 @@
+{
+	"name": "upgit-obsidian",
+	"version": "1.0.0",
+	"description": "Upload images from the Obsidian file explorer or editor using the Upgit CLI",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint .",
+		"test": "tsx --test src/image.test.ts src/markdown.test.ts src/upgit.test.ts"
+	},
+	"keywords": ["obsidian", "upgit", "image", "upload"],
+	"license": "MIT",
+	"author": "EwigMidori",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/EwigMidori/upgit-obsidian"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@types/node": "^22.15.17",
+		"esbuild": "0.25.5",
+		"eslint": "^9.39.4",
+		"eslint-plugin-obsidianmd": "^0.4.0",
+		"globals": "^17.6.0",
+		"jiti": "^2.6.1",
+		"obsidian": "latest",
+		"tsx": "^4.20.5",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.59.1"
+	}
+}
